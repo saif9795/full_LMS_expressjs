@@ -75,4 +75,28 @@ const registerUser = asyncHandler(async (req, res) => {
     )
 });
 
-export {registerUser}
+const loginUser = asyncHandler(async (req, res) => {
+    const {email, password} = req.body;
+
+    if(!email || !password){
+        return res.status(400).json(
+            new ApiResponse(400, null, "Please provide both email and password")
+        )
+    }
+
+    const user = await User.findOne({email});
+
+    if(!user || !(await user.ispasswordCorrect(password))){
+        return res.status(401).json(
+            new ApiResponse(401, null, "Invalid email or password")
+        )
+    }
+
+    const userData = await User.findById(user._id).select("-password -refreshToken");
+
+    return res.status(200).json(
+        new ApiResponse(200, userData, "User logged in successfully")
+    )   
+})
+
+export {registerUser, loginUser}
