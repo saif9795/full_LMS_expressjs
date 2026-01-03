@@ -111,7 +111,7 @@ const loginUser = asyncHandler(async (req, res) => {
         )
     }
 
-    const isPasswordValid = await user.comparePassword(password);
+    const isPasswordValid = await user.ispasswordCorrect(password);
 
     if(!isPasswordValid){
         return res.status(401).json(
@@ -132,7 +132,11 @@ const loginUser = asyncHandler(async (req, res) => {
     .cookie("accessToken", accessToken, options)
     .cookie("refreshToken", refreshToken, options)
     .json(
-        new ApiResponse(200, loggedInUser, accessToken, refreshToken, "User logged in successfully")
+        new ApiResponse(200, {
+            data: loggedInUser, 
+            accessToken: accessToken, 
+            refreshToken: refreshToken}, 
+            "User logged in successfully")
     );
 
 })
