@@ -3,6 +3,8 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import uploadOnCloudinary from "../utils/cloudinary.js";
 import jwt from 'jsonwebtoken';
+import { transporter } from "../utils/nodemailer.js";
+import crypto from "crypto";
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -237,11 +239,94 @@ const getCurrentUser = asyncHandler(async (req, res) => {
     );
 })
 
+const sendForgetPasswordOTP = asyncHandler(async (req, res) => {
+    const {email} = req.body;
+
+    if(!email){
+        return res.status(400).json(
+            new ApiResponse(400, null, "Please provide email")
+        )
+    }
+
+    const user = await User.findOne({email});
+
+    if(!user){
+        return res.status(404).json(
+            new ApiResponse(404, null, "User not found")
+        )
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+    user.otpCode = hashedOtp;;
+    user.otpExpiry = Date.now() + 5 * 60 * 1000;
+
+    await user.save({ validateBeforeSave: false });
+
+    await transporter.sendmail({
+        from: process.env.GOOGLE_CLIENT_MAIL,
+        to: email,
+        subject: "Password Reset OTP",
+        html: `<p>Your OTP for resetting your password is:</p>
+             <h2>${otp}</h2>
+             <p>This OTP will expire in 5 minutes.</p>`
+    })
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "OTP sent to email successfully")
+    );
+})
+
+const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
+    const {email, otp, newPassword} = req.body;
+
+    if(!email || !otp || !newPassword){
+        return res.status(400).json(
+            new ApiResponse(400, null, "Please provide email, otp and new password")
+        )
+    }
+
+    const user = await User.findOne({email});
+
+    if(!user){
+        return res.status(404).json(
+            new ApiResponse(404, null, "User not found")
+        )
+    }
+
+    const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+    if(user.otpCode !== hashedOtp){
+        return res.status(400).json(
+            new ApiResponse(400, null, "Invalid OTP")
+        )
+    }
+
+    if(user.otpExpiry < Date.now()){
+        return res.status(400).json(
+            new ApiResponse(400, null, "OTP has expired")
+        )
+    }
+
+    user.password = newPassword;
+    user.otpCode = undefined;
+    user.otpExpiry = undefined;
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(200, null, "Password reset successfully")
+    );
+})
+
 export {
     registerUser, 
     loginUser, 
     logoutUser,
     refreshAccessToken,
     changeCurrentPassword,
-    getCurrentUser
+    getCurrentUser,
+    sendForgetPasswordOTP,
+    verifyForgotPasswordOTP
 }
