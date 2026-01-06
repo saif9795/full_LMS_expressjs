@@ -31,4 +31,24 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 
 });
 
+export const isAdmin = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    throw new ApiError(403, "Access denied. You are not an admin.");
+  }
+  next();
+};
+
+export const isInstructor = (req, res, next) => {
+  if (req.user?.role !== "instructor") {
+    throw new ApiError(403, "Access denied. You are not an instructor.");
+  }
+  next();
+};
+
+export const isStudent = (req, res, next) => {
+  if (req.user?.role !== "student") {
+    throw new ApiError(403, "Access denied. You are not an student.");
+  }
+  next();
+};
 
