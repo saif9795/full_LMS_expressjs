@@ -320,6 +320,49 @@ const verifyForgotPasswordOTP = asyncHandler(async (req, res) => {
     );
 })
 
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json(
+      new ApiResponse(400, null, "At least one field is required")
+    );
+  }
+
+  if (email) {
+    const emailExists = await User.findOne({
+      email,
+      _id: { $ne: req.user._id }
+    });
+
+    if (emailExists) {
+      throw new ApiError(409, "Email already in use");
+    }
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        ...(userName && { userName }),
+        ...(email && { email }),
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, updatedUser, "Account details updated successfully")
+  );
+});
+
 export {
     registerUser, 
     loginUser, 
@@ -328,5 +371,6 @@ export {
     changeCurrentPassword,
     getCurrentUser,
     sendForgetPasswordOTP,
-    verifyForgotPasswordOTP
+    verifyForgotPasswordOTP,
+    updateAccountDetails
 }
