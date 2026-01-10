@@ -363,6 +363,40 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   );
 });
 
+const updateUserAvatar = asyncHandler(async (req,res) => {
+    const avatarLocalPath = req.file?.path;
+
+    if(!avatarLocalPath){
+        return res.status(400).json({
+            success: false,
+            message: "Avatar image is required",
+        });
+    }
+
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+
+    if(!avatar.url){
+        return res.status(500).json({
+            success: false,
+            message: "Error while uploading avatar",
+        });
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatar.url,
+            }
+        },
+        { new: true }
+    ).select("-password");
+
+    return res.status(200).json(
+        new ApiResponse(200, user, "User avatar updated successfully")
+    );
+})
+
 export {
     registerUser, 
     loginUser, 
@@ -372,5 +406,6 @@ export {
     getCurrentUser,
     sendForgetPasswordOTP,
     verifyForgotPasswordOTP,
-    updateAccountDetails
+    updateAccountDetails,
+    updateUserAvatar
 }
